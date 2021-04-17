@@ -4,19 +4,19 @@ import torch.backends.cudnn as cudnn
 # Data parameters
 caption_txt_path = "./inputs/captions.txt"
 dataset_name = 'flickr8k'
-caption_json_path = './inputs/captions.json'
+data_folder = './inputs/Intermediate_files'  # folder with data files saved by create_input_files.py
+data_name = dataset_name + '_5_cap_per_img_5_min_word_freq'  # base name shared by data files
+caption_json_path = data_folder + '/captions.json'
 image_folder = './inputs/Images'
-captions_per_image=5
+captions_per_image = 5
 min_word_freq=5
-output_folder ='./output'
+output_folder = './output'
 max_cap_len = 50
 
 train_rate = 0.7
 val_rate = 0.2
 # test_rate = 1-train_rate-val_rate
 
-data_folder = './output'  # folder with data files saved by create_input_files.py
-data_name = 'flickr8k_5_cap_per_img_5_min_word_freq'  # base name shared by data files
 
 # Model parameters
 emb_dim = 512  # dimension of word embeddings
@@ -45,7 +45,7 @@ checkpoint = None  # path to checkpoint, None if none
 
 # eval parameters
 # Parameters
-checkpoint = './BEST_checkpoint_flickr8k_5_cap_per_img_5_min_word_freq.pth.tar'  # model checkpoint
+checkpoint = output_folder + '/BEST_checkpoint_{}_5_cap_per_img_5_min_word_freq.pth.tar'.format(dataset_name)  # model checkpoint
 word_map_file = data_folder + '/WORDMAP_' + data_name +'.json'  # word map, ensure it's the same the data was encoded with and the model was trained with
 cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
 
