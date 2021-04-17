@@ -193,6 +193,9 @@ def visualize_att(image_path, seq, alphas, rev_word_map, smooth=True):
 
     # save
     plt.savefig(test_folder + '/' + image_path.split('/')[-1])
+    log_f = open(cap_log_path,'a+',encoding='utf-8')
+    log_f.write(image_path.split('/')[-1] +'\n')
+    log_f.close()
     plt.show()
 
 

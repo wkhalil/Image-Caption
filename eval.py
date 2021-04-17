@@ -170,3 +170,6 @@ def evaluate(beam_size):
 if __name__ == '__main__':
     beam_size = 1
     print("\nBLEU-4 score @ beam size of %d is %.4f." % (beam_size, evaluate(beam_size)))
+    log_f = open(eval_log_path, 'a+', encoding='utf-8')
+    log_f.write("\nBLEU-4 score @ beam size of %d is %.4f." % (beam_size, evaluate(beam_size)) + '\n')
+    log_f.close()

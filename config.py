@@ -9,7 +9,7 @@ data_name = dataset_name + '_5_cap_per_img_5_min_word_freq'  # base name shared 
 caption_json_path = data_folder + '/captions.json'
 image_folder = './inputs/Images'
 captions_per_image = 5
-min_word_freq=5
+min_word_freq = 5
 output_folder = './output'
 max_cap_len = 50
 
@@ -17,6 +17,12 @@ train_rate = 0.7
 val_rate = 0.2
 # test_rate = 1-train_rate-val_rate
 
+# log parameters
+log_folder = './logs'
+train_log_path = log_folder + '/training_log.txt'
+eval_log_path = log_folder + '/evaluate_log.txt'
+cap_log_path = log_folder + '/caption_log.txt'
+tensorboard_path = log_folder + '/log'
 
 # Model parameters
 emb_dim = 512  # dimension of word embeddings
@@ -38,7 +44,7 @@ encoder_lr = 1e-4  # learning rate for encoder if fine-tuning
 decoder_lr = 4e-4  # learning rate for decoder
 grad_clip = 5.  # clip gradients at an absolute value of
 alpha_c = 1.  # regularization parameter for 'doubly stochastic attention', as in the paper
-best_bleu4 = 0.  # BLEU-4 score right now
+best_bleu4 = 0.  # BLEU-4 score before current training, set as 0 if not load model
 print_freq = 100  # print training/validation stats every __ batches
 fine_tune_encoder = True  # fine-tune encoder?
 checkpoint = None  # path to checkpoint, None if none

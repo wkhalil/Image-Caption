@@ -9,6 +9,7 @@ from models import Encoder, DecoderWithAttention
 from datasets import *
 from utils import *
 from nltk.translate.bleu_score import corpus_bleu
+from torch.utils.tensorboard import SummaryWriter
 from config import *
 
 
@@ -19,6 +20,8 @@ def main():
 
     global best_bleu4, epochs_since_improvement, checkpoint, start_epoch, fine_tune_encoder, data_name, word_map
 
+    log_f = open(train_log_path, 'a+',encoding='utf-8')
+
     # Read word map
     word_map_file = os.path.join(data_folder, 'WORDMAP_' + data_name + '.json')
     with open(word_map_file, 'r') as j:
@@ -27,6 +30,7 @@ def main():
     # Initialize / load checkpoint
     if checkpoint is None:
         print('no checkpoint, rebuild')
+        log_f.write('no checkpoint, rebuild'+'\n')
         decoder = DecoderWithAttention(attention_dim=attention_dim,
                                        embed_dim=emb_dim,
                                        decoder_dim=decoder_dim,
@@ -41,7 +45,9 @@ def main():
 
     else:
         print('checkpoint exist,continue.. \n{}'.format(checkpoint))
-        checkpoint = torch.load(checkpoint)
+        log_f.write('checkpoint exist,continue.. \n{}'.format(checkpoint) + '\n')
+        log_f.close()
+        checkpoint = torch.load(checkpoint, map_location=device)     # map_location=device for cpu
         start_epoch = checkpoint['epoch'] + 1
         epochs_since_improvement = checkpoint['epochs_since_improvement']
         best_bleu4 = checkpoint['bleu-4']
@@ -72,6 +78,7 @@ def main():
         batch_size=batch_size, shuffle=True, num_workers=workers, pin_memory=True)
 
     # Epochs
+    val_writer = SummaryWriter(log_dir=tensorboard_path + '/val/' + time.strftime('%m-%d_%H:%M', time.localtime()))
     for epoch in range(start_epoch, epochs):
 
         # Decay learning rate if there is no improvement for 8 consecutive epochs, and terminate training after 20
@@ -95,20 +102,27 @@ def main():
         recent_bleu4 = validate(val_loader=val_loader,
                                 encoder=encoder,
                                 decoder=decoder,
-                                criterion=criterion)
+                                criterion=criterion,
+                                writer=val_writer,
+                                epoch=epoch)
 
-        # Check if there was an improvement
+        # Check if there was an improvement, check each epoch
         is_best = recent_bleu4 > best_bleu4
         best_bleu4 = max(recent_bleu4, best_bleu4)
+        log_f = open(train_log_path, 'a+', encoding='utf-8')
         if not is_best:
             epochs_since_improvement += 1
             print("\nEpochs since last improvement: %d\n" % (epochs_since_improvement,))
+            log_f.write("\nEpochs since last improvement: %d\n" % (epochs_since_improvement,)+'\n')
         else:
             epochs_since_improvement = 0
-
+            log_f.write('\n')
+        log_f.close()
         # Save checkpoint
         save_checkpoint(data_name, epoch, epochs_since_improvement, encoder, decoder, encoder_optimizer,
                         decoder_optimizer, recent_bleu4, is_best)
+
+    val_writer.close()
 
 
 def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_optimizer, epoch):
@@ -124,6 +138,8 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
     :param epoch: epoch number
     """
 
+    log_f = open(train_log_path, 'a+', encoding='utf-8')
+    writer = SummaryWriter(log_dir=tensorboard_path + '/train/' + time.strftime('%m-%d_%H:%M', time.localtime()))
     decoder.train()  # train mode (dropout and batchnorm is used)
     encoder.train()
 
@@ -179,7 +195,7 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
             encoder_optimizer.step()
 
         # Keep track of metrics
-        top5 = accuracy(scores, targets, 5)
+        top5 = accuracy(scores, targets, 5)     # not only calculate loss, but also accuracy
         losses.update(loss.item(), sum(decode_lengths))
         top5accs.update(top5, sum(decode_lengths))
         batch_time.update(time.time() - start)
@@ -187,7 +203,7 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
         start = time.time()
 
         # Print status
-        if i % print_freq == 0:
+        if i % print_freq == 0:     # print freq is based on how many batches
             print('Epoch: [{0}][{1}/{2}]\t'
                   'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Data Load Time {data_time.val:.3f} ({data_time.avg:.3f})\t'
@@ -197,8 +213,22 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
                                                                           data_time=data_time, loss=losses,
                                                                           top5=top5accs))
 
+            log_f.write('Epoch: [{0}][{1}/{2}]\t'
+                  'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                  'Data Load Time {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                  'Top-5 Accuracy {top5.val:.3f} ({top5.avg:.3f})'.format(epoch, i, len(train_loader),
+                                                                          batch_time=batch_time,
+                                                                          data_time=data_time, loss=losses,
+                                                                          top5=top5accs) + '\n')
 
-def validate(val_loader, encoder, decoder, criterion):
+            writer.add_scalar("loss/train", losses, i)
+            writer.add_scalar("acc/train", top5accs, i)
+    log_f.close()
+    writer.close()
+
+
+def validate(val_loader, encoder, decoder, criterion, writer, epoch):
     """
     Performs one epoch's validation.
 
@@ -208,6 +238,8 @@ def validate(val_loader, encoder, decoder, criterion):
     :param criterion: loss layer
     :return: BLEU-4 score
     """
+    log_f = open(train_log_path, 'a+', encoding='utf-8')
+
     decoder.eval()  # eval mode (no dropout or batchnorm)
     if encoder is not None:
         encoder.eval()
@@ -267,6 +299,12 @@ def validate(val_loader, encoder, decoder, criterion):
                       'Top-5 Accuracy {top5.val:.3f} ({top5.avg:.3f})\t'.format(i, len(val_loader), batch_time=batch_time,
                                                                                 loss=losses, top5=top5accs))
 
+                log_f.write('Validation: [{0}/{1}]\t'
+                      'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                      'Top-5 Accuracy {top5.val:.3f} ({top5.avg:.3f})\t'.format(i, len(val_loader), batch_time=batch_time,
+                                                                                loss=losses, top5=top5accs) + '\n')
+
             # Store references (true captions), and hypothesis (prediction) for each image
             # If for n images, we have n hypotheses, and references a, b, c... for each image, we need -
             # references = [[ref1a, ref1b, ref1c], [ref2a, ref2b], ...], hypotheses = [hyp1, hyp2, ...]
@@ -300,6 +338,15 @@ def validate(val_loader, encoder, decoder, criterion):
                 top5=top5accs,
                 bleu=bleu4))
 
+        log_f.write('\n * LOSS - {loss.avg:.3f}, TOP-5 ACCURACY - {top5.avg:.3f}, BLEU-4 - {bleu}\n'.format(
+                loss=losses,
+                top5=top5accs,
+                bleu=bleu4) + '\n')
+
+        writer.add_scalar('loss/val', losses, epoch)
+        writer.add_scaler('acc/val', top5accs, epoch)
+
+    log_f.close()
     return bleu4
 
 
