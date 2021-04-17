@@ -14,7 +14,7 @@ Data comes from: <a href="https://www.kaggle.com/adityajn105/flickr8k?select=Ima
 **before training & testing: make sure all libraries are installed with compatible versions (requirements.txt for reference).**
 
 ### Training Process
-1. run create_input_files.py
+1. run create_input_files.py (only once for generating intermediate data files)
 2. run train.py
 
 ### Testing Process
