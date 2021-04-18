@@ -199,10 +199,10 @@ def visualize_att(image_path, seq, alphas, rev_word_map, smooth=True):
     plt.show()
 
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Show, Attend, and Tell - Tutorial - Generate Caption')
 
+    parser.add_argument('--num', '-n', help='num of generated images')
     parser.add_argument('--img', '-i', help='path to image')
     parser.add_argument('--model', '-m', help='path to model')
     parser.add_argument('--word_map', '-wm', help='path to word map JSON')
@@ -229,11 +229,22 @@ if __name__ == '__main__':
         word_map = json.load(j)
     rev_word_map = {v: k for k, v in word_map.items()}  # ix2word
 
-    # Encode, decode with attention and beam search
-    if not args.img:
-        args.img = image_folder +'/'+random.choice(os.listdir(image_folder))
-    seq, alphas = caption_image_beam_search(encoder, decoder, args.img, word_map, args.beam_size)
-    alphas = torch.FloatTensor(alphas)
+    # if not only one generate
+    if args.num:
+        for _ in range(int(args.num)):
+            args.img = image_folder + '/' + random.choice(os.listdir(image_folder))
+            seq, alphas = caption_image_beam_search(encoder, decoder, args.img, word_map, args.beam_size)
+            alphas = torch.FloatTensor(alphas)
+            # Visualize caption and attention of best sequence
+            visualize_att(args.img, seq, alphas, rev_word_map, args.smooth)
 
-    # Visualize caption and attention of best sequence
-    visualize_att(args.img, seq, alphas, rev_word_map, args.smooth)
+    # specify only one
+    else:
+        # Encode, decode with attention and beam search
+        if not args.img:
+            args.img = image_folder + '/' + random.choice(os.listdir(image_folder))
+        seq, alphas = caption_image_beam_search(encoder, decoder, args.img, word_map, args.beam_size)
+        alphas = torch.FloatTensor(alphas)
+
+        # Visualize caption and attention of best sequence
+        visualize_att(args.img, seq, alphas, rev_word_map, args.smooth)

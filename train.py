@@ -78,7 +78,7 @@ def main():
         batch_size=batch_size, shuffle=True, num_workers=workers, pin_memory=True)
 
     # Epochs
-    val_writer = SummaryWriter(log_dir=tensorboard_path + '/val/' + time.strftime('%m-%d_%H:%M', time.localtime()))
+    val_writer = SummaryWriter(log_dir=tensorboard_path + '/val/' + time.strftime('%m-%d_%H%M', time.localtime()))
     for epoch in range(start_epoch, epochs):
 
         # Decay learning rate if there is no improvement for 8 consecutive epochs, and terminate training after 20
@@ -139,7 +139,7 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
     """
 
     log_f = open(train_log_path, 'a+', encoding='utf-8')
-    writer = SummaryWriter(log_dir=tensorboard_path + '/train/' + time.strftime('%m-%d_%H:%M', time.localtime()))
+    writer = SummaryWriter(log_dir=tensorboard_path + '/train/' + time.strftime('%m-%d_%H%M', time.localtime()))
     decoder.train()  # train mode (dropout and batchnorm is used)
     encoder.train()
 
@@ -222,8 +222,8 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
                                                                           data_time=data_time, loss=losses,
                                                                           top5=top5accs) + '\n')
 
-            writer.add_scalar("loss/train", losses, i)
-            writer.add_scalar("acc/train", top5accs, i)
+            writer.add_scalar("loss/train", losses.val, i)
+            writer.add_scalar("acc/train", top5accs.val, i)
     log_f.close()
     writer.close()
 
@@ -343,8 +343,8 @@ def validate(val_loader, encoder, decoder, criterion, writer, epoch):
                 top5=top5accs,
                 bleu=bleu4) + '\n')
 
-        writer.add_scalar('loss/val', losses, epoch)
-        writer.add_scaler('acc/val', top5accs, epoch)
+        writer.add_scalar('loss/val', losses.val, epoch)
+        writer.add_scalar('acc/val', top5accs.val, epoch)
 
     log_f.close()
     return bleu4
