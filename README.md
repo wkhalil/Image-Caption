@@ -21,7 +21,7 @@ run create_input_files.py
 
 ### Training Process
 There are two choices for training, if training without previous checkpoints, set checkpoints in config.py as None. <br />
-Another one is training based on current best model (default).
+Another one is training based on current best model (default, <a href="https://drive.google.com/drive/folders/1E3W1wKbhV20FyBfRfTXfRcjAVjoIQavp?usp=sharing">latest model checkpoints<a/>).
 ```
 run train.py
 ```
