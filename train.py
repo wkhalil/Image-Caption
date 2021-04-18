@@ -10,6 +10,7 @@ from datasets import *
 from utils import *
 from nltk.translate.bleu_score import corpus_bleu
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 import config
 
 
@@ -160,79 +161,82 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
     start = time.time()
 
     # Batches
-    for i, (imgs, caps, caplens) in enumerate(train_loader):
-        data_time.update(time.time() - start)
+    with tqdm(total = len(train_loader)) as pbar:
+        for i, (imgs, caps, caplens) in enumerate(train_loader):
+            data_time.update(time.time() - start)
 
-        # Move to GPU, if available
-        # imgs = imgs.to(config.device)   # no GPU
-        # caps = caps.to(config.device)   # no GPU
-        # caplens = caplens.to(config.device)   # no GPU
+            # Move to GPU, if available
+            # imgs = imgs.to(config.device)   # no GPU
+            # caps = caps.to(config.device)   # no GPU
+            # caplens = caplens.to(config.device)   # no GPU
 
-        # Forward prop.
-        imgs = encoder(imgs)
-        scores, caps_sorted, decode_lengths, alphas, sort_ind = decoder(imgs, caps, caplens)
+            # Forward prop.
+            imgs = encoder(imgs)
+            scores, caps_sorted, decode_lengths, alphas, sort_ind = decoder(imgs, caps, caplens)
 
-        # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
-        targets = caps_sorted[:, 1:]
+            # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
+            targets = caps_sorted[:, 1:]
 
-        # Remove timesteps that we didn't decode at, or are pads
-        # pack_padded_sequence is an easy trick to do this
-        scores = pack_padded_sequence(scores, decode_lengths, batch_first=True).data
-        targets = pack_padded_sequence(targets, decode_lengths, batch_first=True).data
+            # Remove timesteps that we didn't decode at, or are pads
+            # pack_padded_sequence is an easy trick to do this
+            scores = pack_padded_sequence(scores, decode_lengths, batch_first=True).data
+            targets = pack_padded_sequence(targets, decode_lengths, batch_first=True).data
 
-        # Calculate loss
-        loss = criterion(scores, targets)
+            # Calculate loss
+            loss = criterion(scores, targets)
 
-        # Add doubly stochastic attention regularization
-        loss += config.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
+            # Add doubly stochastic attention regularization
+            loss += config.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
 
-        # Back prop.
-        decoder_optimizer.zero_grad()
-        if encoder_optimizer is not None:
-            encoder_optimizer.zero_grad()
-        loss.backward()
-
-        # Clip gradients
-        if config.grad_clip is not None:
-            clip_gradient(decoder_optimizer, config.grad_clip)
+            # Back prop.
+            decoder_optimizer.zero_grad()
             if encoder_optimizer is not None:
-                clip_gradient(encoder_optimizer, config.grad_clip)
+                encoder_optimizer.zero_grad()
+            loss.backward()
 
-        # Update weights
-        decoder_optimizer.step()
-        if encoder_optimizer is not None:
-            encoder_optimizer.step()
+            # Clip gradients
+            if config.grad_clip is not None:
+                clip_gradient(decoder_optimizer, config.grad_clip)
+                if encoder_optimizer is not None:
+                    clip_gradient(encoder_optimizer, config.grad_clip)
 
-        # Keep track of metrics
-        top5 = accuracy(scores, targets, 5)  # not only calculate loss, but also accuracy
-        losses.update(loss.item(), sum(decode_lengths))
-        top5accs.update(top5, sum(decode_lengths))
-        batch_time.update(time.time() - start)
+            # Update weights
+            decoder_optimizer.step()
+            if encoder_optimizer is not None:
+                encoder_optimizer.step()
 
-        start = time.time()
+            # Keep track of metrics
+            top5 = accuracy(scores, targets, 5)  # not only calculate loss, but also accuracy
+            losses.update(loss.item(), sum(decode_lengths))
+            top5accs.update(top5, sum(decode_lengths))
+            batch_time.update(time.time() - start)
 
-        # Print status
-        if i % config.print_freq == 0:  # print freq is based on how many batches
-            print('Epoch: [{0}][{1}/{2}]\t'
-                  'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data Load Time {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Top-5 Accuracy {top5.val:.3f} ({top5.avg:.3f})'.format(epoch, i, len(train_loader),
-                                                                          batch_time=batch_time,
-                                                                          data_time=data_time, loss=losses,
-                                                                          top5=top5accs))
+            start = time.time()
 
-            log_f.write('Epoch: [{0}][{1}/{2}]\t'
-                        'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                        'Data Load Time {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                        'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                        'Top-5 Accuracy {top5.val:.3f} ({top5.avg:.3f})'.format(epoch, i, len(train_loader),
-                                                                                batch_time=batch_time,
-                                                                                data_time=data_time, loss=losses,
-                                                                                top5=top5accs) + '\n')
+            # Print status
+            if i % config.print_freq == 0:  # print freq is based on how many batches
+                print('Epoch: [{0}][{1}/{2}]\t'
+                      'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                      'Data Load Time {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                      'Top-5 Accuracy {top5.val:.3f} ({top5.avg:.3f})'.format(epoch, i, len(train_loader),
+                                                                              batch_time=batch_time,
+                                                                              data_time=data_time, loss=losses,
+                                                                              top5=top5accs))
 
-            writer.add_scalar("loss/train", losses.val, i)
-            writer.add_scalar("acc/train", top5accs.val, i)
+                log_f.write('Epoch: [{0}][{1}/{2}]\t'
+                            'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                            'Data Load Time {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                            'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                            'Top-5 Accuracy {top5.val:.3f} ({top5.avg:.3f})'.format(epoch, i, len(train_loader),
+                                                                                    batch_time=batch_time,
+                                                                                    data_time=data_time, loss=losses,
+                                                                                    top5=top5accs) + '\n')
+
+                writer.add_scalar("loss/train", losses.val, i)
+                writer.add_scalar("acc/train", top5accs.val, i)
+            pbar.update(1)
+
     log_f.close()
     writer.close()
 

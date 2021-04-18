@@ -26,6 +26,7 @@ train_log_path = log_folder + '/training_log.txt'
 eval_log_path = log_folder + '/evaluate_log.txt'
 cap_log_path = log_folder + '/caption_log.txt'
 tensorboard_path = log_folder + '/log'
+past_model_path = 'model_history'
 
 # Model parameters
 emb_dim = 512  # dimension of word embeddings

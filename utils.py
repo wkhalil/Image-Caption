@@ -11,7 +11,9 @@ from matplotlib.pyplot import imread
 from tqdm import tqdm
 from collections import Counter
 from random import seed, choice, sample
-# from config import *
+import os
+import time
+import shutil
 import config
 
 
@@ -295,6 +297,7 @@ def save_checkpoint(data_name, epoch, epochs_since_improvement, encoder, decoder
     torch.save(state, filename)
     # If this checkpoint is the best so far, store a copy so it doesn't get overwritten by a worse checkpoint
     if is_best:
+        record_old_model()
         torch.save(state, 'BEST_' + filename)
 
 
@@ -348,3 +351,14 @@ def accuracy(scores, targets, k):
     correct = ind.eq(targets.view(-1, 1).expand_as(ind))
     correct_total = correct.view(-1).float().sum()  # 0D tensor
     return correct_total.item() * (100.0 / batch_size)
+
+
+def record_old_model():
+    old_path = config.checkpoint
+    if os.path.isfile(old_path):
+        mtime = os.stat(old_path).st_mtime
+        file_modify_time = time.strftime('%m%d_%H%M', time.localtime(mtime))
+        new_model_name = "BEST_{}.pth.rar".format(file_modify_time)
+        new_path = config.past_model_path + '/' + new_model_name
+        shutil.move(old_path, new_path)
+        print('already record old model {} to {}'.format(old_path, new_path))
