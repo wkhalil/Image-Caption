@@ -10,7 +10,7 @@ from datasets import *
 from utils import *
 from nltk.translate.bleu_score import corpus_bleu
 from torch.utils.tensorboard import SummaryWriter
-from config import *
+import config
 
 
 def main():
@@ -19,35 +19,43 @@ def main():
     """
 
     global best_bleu4, epochs_since_improvement, checkpoint, start_epoch, fine_tune_encoder, data_name, word_map
+    best_bleu4 = config.best_bleu4
+    epochs_since_improvement = config.epochs_since_improvement
+    checkpoint = config.checkpoint
+    start_epoch = config.start_epoch
+    fine_tune_encoder = config.fine_tune_encoder
+    data_name = config.data_name
+    checkpoint = config.checkpoint
 
-    log_f = open(train_log_path, 'a+',encoding='utf-8')
+
+    log_f = open(config.train_log_path, 'a+', encoding='utf-8')
 
     # Read word map
-    word_map_file = os.path.join(data_folder, 'WORDMAP_' + data_name + '.json')
+    word_map_file = os.path.join(config.data_folder, 'WORDMAP_' + data_name + '.json')
     with open(word_map_file, 'r') as j:
         word_map = json.load(j)
 
     # Initialize / load checkpoint
     if checkpoint is None:
         print('no checkpoint, rebuild')
-        log_f.write('no checkpoint, rebuild'+'\n')
-        decoder = DecoderWithAttention(attention_dim=attention_dim,
-                                       embed_dim=emb_dim,
-                                       decoder_dim=decoder_dim,
+        log_f.write('\n\nno checkpoint, rebuild' + '\n')
+        decoder = DecoderWithAttention(attention_dim=config.attention_dim,
+                                       embed_dim=config.emb_dim,
+                                       decoder_dim=config.decoder_dim,
                                        vocab_size=len(word_map),
-                                       dropout=dropout)
+                                       dropout=config.dropout)
         decoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, decoder.parameters()),
-                                             lr=decoder_lr)
+                                             lr=config.decoder_lr)
         encoder = Encoder()
         encoder.fine_tune(fine_tune_encoder)
         encoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, encoder.parameters()),
-                                             lr=encoder_lr) if fine_tune_encoder else None
+                                             lr=config.encoder_lr) if fine_tune_encoder else None
 
     else:
         print('checkpoint exist,continue.. \n{}'.format(checkpoint))
-        log_f.write('checkpoint exist,continue.. \n{}'.format(checkpoint) + '\n')
+        log_f.write('\n\ncheckpoint exist,continue.. \n{}'.format(checkpoint) + '\n')
         log_f.close()
-        checkpoint = torch.load(checkpoint, map_location=device)     # map_location=device for cpu
+        checkpoint = torch.load(checkpoint, map_location=config.device)  # map_location=device for cpu
         start_epoch = checkpoint['epoch'] + 1
         epochs_since_improvement = checkpoint['epochs_since_improvement']
         best_bleu4 = checkpoint['bleu-4']
@@ -58,28 +66,29 @@ def main():
         if fine_tune_encoder is True and encoder_optimizer is None:
             encoder.fine_tune(fine_tune_encoder)
             encoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, encoder.parameters()),
-                                                 lr=encoder_lr)
+                                                 lr=config.encoder_lr)
 
     # Move to GPU, if available
-    decoder = decoder.to(device)
-    encoder = encoder.to(device)
+    # decoder = decoder.to(config.device)   # no GPU
+    # encoder = encoder.to(config.device)   # no GPU
 
     # Loss function
-    criterion = nn.CrossEntropyLoss().to(device)
+    # criterion = nn.CrossEntropyLoss().to(config.device)   # no GPU
+    criterion = nn.CrossEntropyLoss()
 
     # Custom dataloaders
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],        # 这里是原ResNet的mean和std
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],  # 这里是原ResNet的mean和std
                                      std=[0.229, 0.224, 0.225])
     train_loader = torch.utils.data.DataLoader(
-        CaptionDataset(data_folder, data_name, 'TRAIN', transform=transforms.Compose([normalize])),
-        batch_size=batch_size, shuffle=True, num_workers=workers, pin_memory=True)
+        CaptionDataset(config.data_folder, data_name, 'TRAIN', transform=transforms.Compose([normalize])),
+        batch_size=config.batch_size, shuffle=True, num_workers=config.workers, pin_memory=True)
     val_loader = torch.utils.data.DataLoader(
-        CaptionDataset(data_folder, data_name, 'VAL', transform=transforms.Compose([normalize])),
-        batch_size=batch_size, shuffle=True, num_workers=workers, pin_memory=True)
+        CaptionDataset(config.data_folder, data_name, 'VAL', transform=transforms.Compose([normalize])),
+        batch_size=config.batch_size, shuffle=True, num_workers=config.workers, pin_memory=True)
 
     # Epochs
-    val_writer = SummaryWriter(log_dir=tensorboard_path + '/val/' + time.strftime('%m-%d_%H%M', time.localtime()))
-    for epoch in range(start_epoch, epochs):
+    val_writer = SummaryWriter(log_dir=config.tensorboard_path + '/val/' + time.strftime('%m-%d_%H%M', time.localtime()))
+    for epoch in range(start_epoch, config.epochs):
 
         # Decay learning rate if there is no improvement for 8 consecutive epochs, and terminate training after 20
         if epochs_since_improvement == 20:
@@ -109,11 +118,11 @@ def main():
         # Check if there was an improvement, check each epoch
         is_best = recent_bleu4 > best_bleu4
         best_bleu4 = max(recent_bleu4, best_bleu4)
-        log_f = open(train_log_path, 'a+', encoding='utf-8')
+        log_f = open(config.train_log_path, 'a+', encoding='utf-8')
         if not is_best:
             epochs_since_improvement += 1
             print("\nEpochs since last improvement: %d\n" % (epochs_since_improvement,))
-            log_f.write("\nEpochs since last improvement: %d\n" % (epochs_since_improvement,)+'\n')
+            log_f.write("\nEpochs since last improvement: %d\n" % (epochs_since_improvement,) + '\n')
         else:
             epochs_since_improvement = 0
             log_f.write('\n')
@@ -138,8 +147,8 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
     :param epoch: epoch number
     """
 
-    log_f = open(train_log_path, 'a+', encoding='utf-8')
-    writer = SummaryWriter(log_dir=tensorboard_path + '/train/' + time.strftime('%m-%d_%H%M', time.localtime()))
+    log_f = open(config.train_log_path, 'a+', encoding='utf-8')
+    writer = SummaryWriter(log_dir=config.tensorboard_path + '/train/' + time.strftime('%m-%d_%H%M', time.localtime()))
     decoder.train()  # train mode (dropout and batchnorm is used)
     encoder.train()
 
@@ -155,9 +164,9 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
         data_time.update(time.time() - start)
 
         # Move to GPU, if available
-        imgs = imgs.to(device)
-        caps = caps.to(device)
-        caplens = caplens.to(device)
+        # imgs = imgs.to(config.device)   # no GPU
+        # caps = caps.to(config.device)   # no GPU
+        # caplens = caplens.to(config.device)   # no GPU
 
         # Forward prop.
         imgs = encoder(imgs)
@@ -175,7 +184,7 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
         loss = criterion(scores, targets)
 
         # Add doubly stochastic attention regularization
-        loss += alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
+        loss += config.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
 
         # Back prop.
         decoder_optimizer.zero_grad()
@@ -184,10 +193,10 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
         loss.backward()
 
         # Clip gradients
-        if grad_clip is not None:
-            clip_gradient(decoder_optimizer, grad_clip)
+        if config.grad_clip is not None:
+            clip_gradient(decoder_optimizer, config.grad_clip)
             if encoder_optimizer is not None:
-                clip_gradient(encoder_optimizer, grad_clip)
+                clip_gradient(encoder_optimizer, config.grad_clip)
 
         # Update weights
         decoder_optimizer.step()
@@ -195,7 +204,7 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
             encoder_optimizer.step()
 
         # Keep track of metrics
-        top5 = accuracy(scores, targets, 5)     # not only calculate loss, but also accuracy
+        top5 = accuracy(scores, targets, 5)  # not only calculate loss, but also accuracy
         losses.update(loss.item(), sum(decode_lengths))
         top5accs.update(top5, sum(decode_lengths))
         batch_time.update(time.time() - start)
@@ -203,7 +212,7 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
         start = time.time()
 
         # Print status
-        if i % print_freq == 0:     # print freq is based on how many batches
+        if i % config.print_freq == 0:  # print freq is based on how many batches
             print('Epoch: [{0}][{1}/{2}]\t'
                   'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Data Load Time {data_time.val:.3f} ({data_time.avg:.3f})\t'
@@ -214,13 +223,13 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
                                                                           top5=top5accs))
 
             log_f.write('Epoch: [{0}][{1}/{2}]\t'
-                  'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data Load Time {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Top-5 Accuracy {top5.val:.3f} ({top5.avg:.3f})'.format(epoch, i, len(train_loader),
-                                                                          batch_time=batch_time,
-                                                                          data_time=data_time, loss=losses,
-                                                                          top5=top5accs) + '\n')
+                        'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                        'Data Load Time {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                        'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                        'Top-5 Accuracy {top5.val:.3f} ({top5.avg:.3f})'.format(epoch, i, len(train_loader),
+                                                                                batch_time=batch_time,
+                                                                                data_time=data_time, loss=losses,
+                                                                                top5=top5accs) + '\n')
 
             writer.add_scalar("loss/train", losses.val, i)
             writer.add_scalar("acc/train", top5accs.val, i)
@@ -238,7 +247,7 @@ def validate(val_loader, encoder, decoder, criterion, writer, epoch):
     :param criterion: loss layer
     :return: BLEU-4 score
     """
-    log_f = open(train_log_path, 'a+', encoding='utf-8')
+    log_f = open(config.train_log_path, 'a+', encoding='utf-8')
 
     decoder.eval()  # eval mode (no dropout or batchnorm)
     if encoder is not None:
@@ -260,9 +269,9 @@ def validate(val_loader, encoder, decoder, criterion, writer, epoch):
         for i, (imgs, caps, caplens, allcaps) in enumerate(val_loader):
 
             # Move to device, if available
-            imgs = imgs.to(device)
-            caps = caps.to(device)
-            caplens = caplens.to(device)
+            # imgs = imgs.to(config.device)   # no GPU
+            # caps = caps.to(config.device)   # no GPU
+            # caplens = caplens.to(config.device)   # no GPU
 
             # Forward prop.
             if encoder is not None:
@@ -282,7 +291,7 @@ def validate(val_loader, encoder, decoder, criterion, writer, epoch):
             loss = criterion(scores, targets)
 
             # Add doubly stochastic attention regularization
-            loss += alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
+            loss += config.alpha_c * ((1. - alphas.sum(dim=1)) ** 2).mean()
 
             # Keep track of metrics
             losses.update(loss.item(), sum(decode_lengths))
@@ -292,18 +301,21 @@ def validate(val_loader, encoder, decoder, criterion, writer, epoch):
 
             start = time.time()
 
-            if i % print_freq == 0:
+            if i % config.print_freq == 0:
                 print('Validation: [{0}/{1}]\t'
                       'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                       'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                      'Top-5 Accuracy {top5.val:.3f} ({top5.avg:.3f})\t'.format(i, len(val_loader), batch_time=batch_time,
+                      'Top-5 Accuracy {top5.val:.3f} ({top5.avg:.3f})\t'.format(i, len(val_loader),
+                                                                                batch_time=batch_time,
                                                                                 loss=losses, top5=top5accs))
 
                 log_f.write('Validation: [{0}/{1}]\t'
-                      'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                      'Top-5 Accuracy {top5.val:.3f} ({top5.avg:.3f})\t'.format(i, len(val_loader), batch_time=batch_time,
-                                                                                loss=losses, top5=top5accs) + '\n')
+                            'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                            'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                            'Top-5 Accuracy {top5.val:.3f} ({top5.avg:.3f})\t'.format(i, len(val_loader),
+                                                                                      batch_time=batch_time,
+                                                                                      loss=losses,
+                                                                                      top5=top5accs) + '\n')
 
             # Store references (true captions), and hypothesis (prediction) for each image
             # If for n images, we have n hypotheses, and references a, b, c... for each image, we need -
@@ -339,9 +351,9 @@ def validate(val_loader, encoder, decoder, criterion, writer, epoch):
                 bleu=bleu4))
 
         log_f.write('\n * LOSS - {loss.avg:.3f}, TOP-5 ACCURACY - {top5.avg:.3f}, BLEU-4 - {bleu}\n'.format(
-                loss=losses,
-                top5=top5accs,
-                bleu=bleu4) + '\n')
+            loss=losses,
+            top5=top5accs,
+            bleu=bleu4) + '\n')
 
         writer.add_scalar('loss/val', losses.val, epoch)
         writer.add_scalar('acc/val', top5accs.val, epoch)

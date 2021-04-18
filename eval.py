@@ -7,19 +7,19 @@ from utils import *
 from nltk.translate.bleu_score import corpus_bleu
 import torch.nn.functional as F
 from tqdm import tqdm
-from config import *
+import config
 
 # Load model
-checkpoint = torch.load(checkpoint)
+checkpoint = torch.load(config.checkpoint)
 decoder = checkpoint['decoder']
-decoder = decoder.to(device)
+# decoder = decoder.to(config.device)   # no GPU
 decoder.eval()
 encoder = checkpoint['encoder']
-encoder = encoder.to(device)
+# encoder = encoder.to(config.device)   # no GPU
 encoder.eval()
 
 # Load word map (word2ix)
-with open(word_map_file, 'r') as j:
+with open(config.word_map_file, 'r') as j:
     word_map = json.load(j)
 rev_word_map = {v: k for k, v in word_map.items()}
 vocab_size = len(word_map)
@@ -38,7 +38,7 @@ def evaluate(beam_size):
     """
     # DataLoader
     loader = torch.utils.data.DataLoader(
-        CaptionDataset(data_folder, data_name, 'TEST', transform=transforms.Compose([normalize])),
+        CaptionDataset(config.data_folder, config.data_name, 'TEST', transform=transforms.Compose([normalize])),
         batch_size=1, shuffle=True, num_workers=1, pin_memory=True)
 
     # TODO: Batched Beam Search
@@ -57,7 +57,7 @@ def evaluate(beam_size):
         k = beam_size
 
         # Move to GPU device, if available
-        image = image.to(device)  # (1, 3, 256, 256)
+        # image = image.to(config.device)  # (1, 3, 256, 256)   # no GPU
 
         # Encode
         encoder_out = encoder(image)  # (1, enc_image_size, enc_image_size, encoder_dim)
@@ -72,13 +72,15 @@ def evaluate(beam_size):
         encoder_out = encoder_out.expand(k, num_pixels, encoder_dim)  # (k, num_pixels, encoder_dim)
 
         # Tensor to store top k previous words at each step; now they're just <start>
-        k_prev_words = torch.LongTensor([[word_map['<start>']]] * k).to(device)  # (k, 1)
+        # k_prev_words = torch.LongTensor([[word_map['<start>']]] * k).to(config.device)  # (k, 1)  no GPU
+        k_prev_words = torch.LongTensor([[word_map['<start>']]] * k)
 
         # Tensor to store top k sequences; now they're just <start>
         seqs = k_prev_words  # (k, 1)
 
         # Tensor to store top k sequences' scores; now they're just 0
-        top_k_scores = torch.zeros(k, 1).to(device)  # (k, 1)
+        # top_k_scores = torch.zeros(k, 1).to(config.device)  # (k, 1)   no GPU
+        top_k_scores = torch.zeros(k, 1)
 
         # Lists to store completed sequences and scores
         complete_seqs = list()
@@ -170,6 +172,6 @@ def evaluate(beam_size):
 if __name__ == '__main__':
     beam_size = 1
     print("\nBLEU-4 score @ beam size of %d is %.4f." % (beam_size, evaluate(beam_size)))
-    log_f = open(eval_log_path, 'a+', encoding='utf-8')
+    log_f = open(config.eval_log_path, 'a+', encoding='utf-8')
     log_f.write("\nBLEU-4 score @ beam size of %d is %.4f." % (beam_size, evaluate(beam_size)) + '\n')
     log_f.close()

@@ -12,7 +12,7 @@ import argparse
 from scipy.misc import imread, imresize
 from PIL import Image
 import os
-from config import *
+import config
 
 
 def caption_image_beam_search(encoder, decoder, image_path, word_map, beam_size=3):
@@ -38,7 +38,8 @@ def caption_image_beam_search(encoder, decoder, image_path, word_map, beam_size=
     img = imresize(img, (256, 256))
     img = img.transpose(2, 0, 1)
     img = img / 255.
-    img = torch.FloatTensor(img).to(device)
+    # img = torch.FloatTensor(img).to(config.device)    # no GPU
+    img = torch.FloatTensor(img)
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
     transform = transforms.Compose([normalize])
@@ -58,16 +59,19 @@ def caption_image_beam_search(encoder, decoder, image_path, word_map, beam_size=
     encoder_out = encoder_out.expand(k, num_pixels, encoder_dim)  # (k, num_pixels, encoder_dim)
 
     # Tensor to store top k previous words at each step; now they're just <start>
-    k_prev_words = torch.LongTensor([[word_map['<start>']]] * k).to(device)  # (k, 1)
+    # k_prev_words = torch.LongTensor([[word_map['<start>']]] * k).to(config.device)  # (k, 1)  no GPU
+    k_prev_words = torch.LongTensor([[word_map['<start>']]] * k)
 
     # Tensor to store top k sequences; now they're just <start>
     seqs = k_prev_words  # (k, 1)
 
     # Tensor to store top k sequences' scores; now they're just 0
-    top_k_scores = torch.zeros(k, 1).to(device)  # (k, 1)
+    # top_k_scores = torch.zeros(k, 1).to(config.device)  # (k, 1)  no GPU
+    top_k_scores = torch.zeros(k, 1)
 
     # Tensor to store top k sequences' alphas; now they're just 1s
-    seqs_alpha = torch.ones(k, 1, enc_image_size, enc_image_size).to(device)  # (k, 1, enc_image_size, enc_image_size)
+    # seqs_alpha = torch.ones(k, 1, enc_image_size, enc_image_size).to(config.device)  # (k, 1, enc_image_size, enc_image_size) no GPU
+    seqs_alpha = torch.ones(k, 1, enc_image_size, enc_image_size)
 
     # Lists to store completed sequences, their alphas and scores
     complete_seqs = list()
@@ -149,7 +153,7 @@ def caption_image_beam_search(encoder, decoder, image_path, word_map, beam_size=
     return seq, alphas
 
 
-def visualize_att(image_path, seq, alphas, rev_word_map, smooth=True):
+def visualize_att(image_path, seq, alphas, rev_word_map, smooth=True, save_folder = None):
     """
     Visualizes caption with weights at every word.
 
@@ -166,7 +170,7 @@ def visualize_att(image_path, seq, alphas, rev_word_map, smooth=True):
 
     words = [rev_word_map[ind] for ind in seq]
 
-    if img_show_one:
+    if config.img_show_one:
         plt.text(0, 1, ' '.join(words), color='black', backgroundcolor='white', fontsize=11, wrap=True)
         plt.imshow(image)
 
@@ -192,8 +196,10 @@ def visualize_att(image_path, seq, alphas, rev_word_map, smooth=True):
         plt.axis('off')
 
     # save
-    plt.savefig(test_folder + '/' + image_path.split('/')[-1])
-    log_f = open(cap_log_path,'a+',encoding='utf-8')
+    if not save_folder:
+        save_folder = config.test_folder
+    plt.savefig(save_folder + '/' + image_path.split('/')[-1])
+    log_f = open(config.cap_log_path,'a+',encoding='utf-8')
     log_f.write(image_path.split('/')[-1] +'\n')
     log_f.close()
     plt.show()
@@ -208,23 +214,24 @@ if __name__ == '__main__':
     parser.add_argument('--word_map', '-wm', help='path to word map JSON')
     parser.add_argument('--beam_size', '-b', default=5, type=int, help='beam size for beam search')
     parser.add_argument('--dont_smooth', dest='smooth', action='store_false', help='do not smooth alpha overlay')
+    parser.add_argument('--save', '-s', help='indicate path to save generated captions')
 
     args = parser.parse_args()
 
     # Load model
     if not args.model:
-        args.model = checkpoint
-    checkpoint = torch.load(args.model, map_location=str(device))
+        args.model = config.checkpoint
+    checkpoint = torch.load(args.model, map_location=str(config.device))
     decoder = checkpoint['decoder']
-    decoder = decoder.to(device)
+    # decoder = decoder.to(config.device)   # no GPU
     decoder.eval()
     encoder = checkpoint['encoder']
-    encoder = encoder.to(device)
+    # encoder = encoder.to(config.device)   # no GPU
     encoder.eval()
 
     # Load word map (word2ix)
     if not args.word_map:
-        args.word_map = word_map_file
+        args.word_map = config.word_map_file
     with open(args.word_map, 'r') as j:
         word_map = json.load(j)
     rev_word_map = {v: k for k, v in word_map.items()}  # ix2word
@@ -232,19 +239,19 @@ if __name__ == '__main__':
     # if not only one generate
     if args.num:
         for _ in range(int(args.num)):
-            args.img = image_folder + '/' + random.choice(os.listdir(image_folder))
+            args.img = config.image_folder + '/' + random.choice(os.listdir(config.image_folder))
             seq, alphas = caption_image_beam_search(encoder, decoder, args.img, word_map, args.beam_size)
             alphas = torch.FloatTensor(alphas)
             # Visualize caption and attention of best sequence
-            visualize_att(args.img, seq, alphas, rev_word_map, args.smooth)
+            visualize_att(args.img, seq, alphas, rev_word_map, args.smooth, args.save)
 
     # specify only one
     else:
         # Encode, decode with attention and beam search
         if not args.img:
-            args.img = image_folder + '/' + random.choice(os.listdir(image_folder))
+            args.img = config.image_folder + '/' + random.choice(os.listdir(config.image_folder))
         seq, alphas = caption_image_beam_search(encoder, decoder, args.img, word_map, args.beam_size)
         alphas = torch.FloatTensor(alphas)
 
         # Visualize caption and attention of best sequence
-        visualize_att(args.img, seq, alphas, rev_word_map, args.smooth)
+        visualize_att(args.img, seq, alphas, rev_word_map, args.smooth, args.save)
