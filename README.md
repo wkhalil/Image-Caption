@@ -13,12 +13,33 @@ Data comes from: <a href="https://www.kaggle.com/adityajn105/flickr8k?select=Ima
 
 **before training & testing: make sure all libraries are installed with compatible versions (requirements.txt for reference).**
 
+### Preprocess
+```
+run create_input_files.py
+```
+(only once for generating intermediate data files)
+
 ### Training Process
-1. run create_input_files.py (only once for generating intermediate data files)
-2. run train.py
+There are two choices for training, if training without previous checkpoints, set checkpoints in config.py as None. <br />
+Another one is training based on current best model (default).
+```
+run train.py
+```
 
 ### Testing Process
-1. run caption.py <br />
-(also can run by cmd iwth arguments, example: <br />
-python caption.py --img='./inputs/Images/2472574160_8ce233f396.jpg' --model='BEST_checkpoint_flickr8k_5_cap_per_img_5_min_word_freq.pth.tar' --word_map='./output/WORDMAP_flickr8k_5_cap_per_img_5_min_word_freq.json' --beam_size=5
-)
+All generated captions would be stored under test_results directory. <br />
+Three choices:
+1. If randomly generated one caption from all inputs
+```
+$ run caption.py
+```
+2. If randomly generated multiple captions from all inputs <br />
+ex. randomly select 6 images to generate caption
+```
+$ run caption.py --num = 6
+```
+3. generate caption for specific image with specified model <br />
+ex.
+```
+$ python caption.py --img='./inputs/Images/2472574160_8ce233f396.jpg' --model='BEST_checkpoint_flickr8k_5_cap_per_img_5_min_word_freq.pth.tar' --word_map='./output/WORDMAP_flickr8k_5_cap_per_img_5_min_word_freq.json' --beam_size=5
+```
