@@ -21,7 +21,7 @@ run create_input_files.py
 
 ### Training Process
 There are two choices for training, if training without previous checkpoints, set checkpoints in config.py as None. <br />
-Another one is training based on current best model (default).
+Another one is training based on current best model (default, <a href="https://drive.google.com/drive/folders/1E3W1wKbhV20FyBfRfTXfRcjAVjoIQavp?usp=sharing">latest model checkpoints<a/>).
 ```
 run train.py
 ```
@@ -38,8 +38,8 @@ ex. randomly select 6 images to generate caption
 ```
 $ run caption.py --num = 6
 ```
-3. generate caption for specific image with specified model <br />
+3. generate caption for specified image & specified model & specified path to save<br />
 ex.
 ```
-$ python caption.py --img='./inputs/Images/2472574160_8ce233f396.jpg' --model='BEST_checkpoint_flickr8k_5_cap_per_img_5_min_word_freq.pth.tar' --word_map='./output/WORDMAP_flickr8k_5_cap_per_img_5_min_word_freq.json' --beam_size=5
+$ python caption.py  --word_map='./inputs/Intermediate_files/WORDMAP_flickr8k_5_cap_per_img_5_min_word_freq.json' --beam_size=5 --img='./inputs/Images/2877424957_9beb1dc49a.jpg' --save='./test_results/gen_3' --model='./model_history/best_0417_20.pth.tar'
 ```
