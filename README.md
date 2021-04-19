@@ -15,7 +15,7 @@ Data comes from: <a href="https://www.kaggle.com/adityajn105/flickr8k?select=Ima
 
 ### Preprocess
 ```
-run create_input_files.py
+$ run create_input_files.py
 ```
 (only once for generating intermediate data files)
 
@@ -23,7 +23,13 @@ run create_input_files.py
 There are two choices for training, if training without previous checkpoints, set checkpoints in config.py as None. <br />
 Another one is training based on current best model (default, <a href="https://drive.google.com/drive/folders/1E3W1wKbhV20FyBfRfTXfRcjAVjoIQavp?usp=sharing">latest model checkpoints<a/>).
 ```
-run train.py
+$ run train.py
+```
+
+### evaluation metrics
+first install <a href="https://github.com/salaniz/pycocoevalcap"> pycocoevalcap <a/> for CIDER, SPICE metrics.(Problems still exist for SPICE after installing following <a href="https://github.com/jiasenlu/coco-caption">instructions<a/>, and others also met <a href="https://github.com/jiasenlu/NeuralBabyTalk/issues/9">the same problem<a/>)
+```
+$ run eval.py
 ```
 
 ### Testing Process
