@@ -8,7 +8,12 @@ from torch.nn.utils.rnn import pack_padded_sequence
 from models import Encoder, DecoderWithAttention
 from datasets import *
 from utils import *
+
 from nltk.translate.bleu_score import corpus_bleu
+from pycocoevalcap.rouge.rouge import Rouge
+from pycocoevalcap.cider.cider import Cider
+from pycocoevalcap.spice.spice import Spice
+
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import config
@@ -232,7 +237,6 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
                                                                                     batch_time=batch_time,
                                                                                     data_time=data_time, loss=losses,
                                                                                     top5=top5accs) + '\n')
-
                 writer.add_scalar("loss/train", losses.val, i)
                 writer.add_scalar("acc/train", top5accs.val, i)
             pbar.update(1)
@@ -347,6 +351,7 @@ def validate(val_loader, encoder, decoder, criterion, writer, epoch):
 
         # Calculate BLEU-4 scores
         bleu4 = corpus_bleu(references, hypotheses)
+        spice_score = Spice().compute_score(references, hypotheses)
 
         print(
             '\n * LOSS - {loss.avg:.3f}, TOP-5 ACCURACY - {top5.avg:.3f}, BLEU-4 - {bleu}\n'.format(

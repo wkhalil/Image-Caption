@@ -11,6 +11,9 @@ from matplotlib.pyplot import imread
 from tqdm import tqdm
 from collections import Counter
 from random import seed, choice, sample
+# pycocoevalcap
+from pycocoevalcap.tokenizer.ptbtokenizer import PTBTokenizer
+
 import os
 import time
 import shutil
@@ -293,12 +296,12 @@ def save_checkpoint(data_name, epoch, epochs_since_improvement, encoder, decoder
              'decoder': decoder,
              'encoder_optimizer': encoder_optimizer,
              'decoder_optimizer': decoder_optimizer}
-    filename = 'checkpoint_' + data_name + '.pth.tar'
+    filename = config.output_folder + 'checkpoint_' + data_name + '.pth.tar'
     torch.save(state, filename)
     # If this checkpoint is the best so far, store a copy so it doesn't get overwritten by a worse checkpoint
     if is_best:
         record_old_model()
-        torch.save(state, 'BEST_' + filename)
+        torch.save(state, config.checkpoint)
 
 
 class AverageMeter(object):
@@ -354,6 +357,10 @@ def accuracy(scores, targets, k):
 
 
 def record_old_model():
+    """
+    move previous best model to history folder to avoid be rewrite and loss
+    :return:
+    """
     old_path = config.checkpoint
     if os.path.isfile(old_path):
         mtime = os.stat(old_path).st_mtime
@@ -362,3 +369,26 @@ def record_old_model():
         new_path = config.past_model_path + '/' + new_model_name
         shutil.move(old_path, new_path)
         print('already record old model {} to {}'.format(old_path, new_path))
+
+
+def format_for_metrics(gts, res, rev_word_map):
+    """
+    to generate appropriate format to use pycocoevalcap
+    :param gts: groud truth list
+    :param res: hypothesis list
+    :param rev_word_map: reverse word map, from idxes to character
+    :return:
+    """
+    gts_dic = {}
+    for idx, sents in enumerate(gts):
+       tmp = []
+       for sent in sents:
+           tmp.append({u'image_id': idx, u'caption':' '.join([rev_word_map[x] for x in sent])})
+       gts_dic[idx] = tmp[:]
+
+    res_dic = {}
+    for idx, sent in enumerate(res):
+       res_dic[idx] = [{u'image_id': idx, u'caption': ' '.join([rev_word_map[x] for x in sent])}]
+
+    tokenizer = PTBTokenizer()
+    return tokenizer.tokenize(gts_dic), tokenizer.tokenize(res_dic)

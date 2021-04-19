@@ -5,6 +5,13 @@ import torchvision.transforms as transforms
 from datasets import *
 from utils import *
 from nltk.translate.bleu_score import corpus_bleu
+
+from pycocoevalcap.bleu.bleu import Bleu
+from pycocoevalcap.meteor.meteor import Meteor
+from pycocoevalcap.rouge.rouge import Rouge
+from pycocoevalcap.cider.cider import Cider
+from pycocoevalcap.spice.spice import Spice
+
 import torch.nn.functional as F
 from tqdm import tqdm
 import config
@@ -53,7 +60,6 @@ def evaluate(beam_size):
     # For each image
     for i, (image, caps, caplens, allcaps) in enumerate(
             tqdm(loader, desc="EVALUATING AT BEAM SIZE " + str(beam_size))):
-
         k = beam_size
 
         # Move to GPU device, if available
@@ -166,12 +172,25 @@ def evaluate(beam_size):
     # Calculate BLEU-4 scores
     bleu4 = corpus_bleu(references, hypotheses)
 
-    return bleu4
+    # pycocoevalcap
+    gts, res = format_for_metrics(references, hypotheses, rev_word_map)
+    blue_scores, _ = Bleu(4).compute_score(gts, res)
+    cider_score, _ = Cider().compute_score(gts, res)
+    # spice_score = Spice().compute_score(gts, res)
+    spice_score = 'awaiting'
+    return bleu4, blue_scores, cider_score, spice_score
 
 
 if __name__ == '__main__':
     beam_size = 1
-    print("\nBLEU-4 score @ beam size of %d is %.4f." % (beam_size, evaluate(beam_size)))
+    metrics = evaluate(beam_size)
+    print("\nBLEU-4 score @ beam size of %d is %.4f." % (beam_size, metrics[0]))
+    print('pycocoevalcap evaluation:')
+    print('\tblue 1 is {:.4f}\tblue 2 is {:.4f}\tblue 3 is {:.4f}\tblue 4 is {:.4f}'.format(*metrics[1]))
+    print('\tcider is {:.4f}\t\tspice is {}'.format(metrics[2], metrics[3]))
     log_f = open(config.eval_log_path, 'a+', encoding='utf-8')
-    log_f.write("\nBLEU-4 score @ beam size of %d is %.4f." % (beam_size, evaluate(beam_size)) + '\n')
+    log_f.write("\nBLEU-4 score @ beam size of %d is %.4f." % (beam_size, metrics[0]) + '\n')
+    log_f.write("pycocoevalcap evaluation:" + '\n')
+    log_f.write('\tblue 1 is {:.4f}\tblue 2 is {:.4f}\tblue 3 is {:.4f}\tblue 4 is {:.4f}'.format(*metrics[1]) + '\n')
+    log_f.write('\tcider is {:.4f}\t\tspice is {}'.format(metrics[2], metrics[3]) + '\n')
     log_f.close()
