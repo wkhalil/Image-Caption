@@ -17,3 +17,6 @@ torch==1.8.1
 torchvision==0.9.1
 tqdm==4.60.0
 Werkzeug==1.0.1
+pycocoevalcap==1.2
+tensorboard==1.15.0
+tensorboardX==2.2
