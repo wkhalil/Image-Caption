@@ -11,25 +11,64 @@ Data comes from: <a href="https://www.kaggle.com/adityajn105/flickr8k?select=Ima
 - Revised code to suit API changes of different libraries.
 - Caption test revised.
 
-**before training & testing: make sure all libraries are installed with compatible versions (requirements.txt for reference).**
+### before training
+1. clone the current repository to servers
+```
+$ git clone git@github.com:wkhalil/Image-Caption.git
+```
+2. **before training & testing: make sure all libraries are installed with compatible versions (requirements.txt for reference).**
+using the interpreter with compatible environment to open the project.
+3. check for directory tree (missing folders can be created manually, most with place_holder.txt) <br />
+directory necessary for training:
+```
+.
+├── README.md
+├── caption.py
+├── config.py
+├── create_input_files.py
+├── datasets.py
+├── eval.py
+├── inputs
+│   ├── Images
+│   ├── Intermediate_files
+│   │   └── place_holder.txt
+│   └── captions.txt
+├── logs
+│   └── log
+│       ├── train
+│       │   └── place_holder.txt
+│       └── val
+│           └── place_holder.txt
+├── model_history
+│   └── place_holder.txt
+├── models.py
+├── output
+│   └── place_holder.txt
+├── requirements.txt
+├── test_results
+│   └── place_holder.txt
+├── train.py
+└── utils.py
+```
 
 ### Preprocess
 ```
-$ run create_input_files.py
+$ python create_input_files.py
 ```
 (only once for generating intermediate data files)
 
 ### Training Process
-There are two choices for training, if training without previous checkpoints, set checkpoints in config.py as None. <br />
-Another one is training based on current best model (default, <a href="https://drive.google.com/drive/folders/1E3W1wKbhV20FyBfRfTXfRcjAVjoIQavp?usp=sharing">latest model checkpoints<a/>).
+1. There are two choices for training, if training without previous checkpoints, **set checkpoints=None in config.py**. <br />
+Another one is training based on current best model (**default, obtain best model: <a href="https://drive.google.com/drive/folders/1E3W1wKbhV20FyBfRfTXfRcjAVjoIQavp?usp=sharing">latest model checkpoints<a/>**).
+2. run the train.py
 ```
-$ run train.py
+$ python train.py
 ```
 
 ### evaluation metrics
 first install <a href="https://github.com/salaniz/pycocoevalcap"> pycocoevalcap <a/> for CIDER, SPICE metrics.(Problems still exist for SPICE after installing following <a href="https://github.com/jiasenlu/coco-caption">instructions<a/>, and others also met <a href="https://github.com/jiasenlu/NeuralBabyTalk/issues/9">the same problem<a/>)
 ```
-$ run eval.py
+$ python eval.py
 ```
 
 ### Testing Process
@@ -37,12 +76,12 @@ All generated captions would be stored under test_results directory. <br />
 Three choices:
 1. If randomly generated one caption from all inputs
 ```
-$ run caption.py
+$ python caption.py
 ```
 2. If randomly generated multiple captions from all inputs <br />
-ex. randomly select 6 images to generate caption
+ex. randomly select 6 images to generate captions
 ```
-$ run caption.py --num = 6
+$ python caption.py --num = 6
 ```
 3. generate caption for specified image & specified model & specified path to save<br />
 ex.
