@@ -150,12 +150,20 @@ def evaluate(beam_size):
             k_prev_words = next_word_inds[incomplete_inds].unsqueeze(1)
 
             # Break if things have been going on too long
+            # debugging https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Image-Captioning/issues/18
+            smth_wrong = False
             if step > 50:
+                smth_wrong = True
                 break
             step += 1
 
-        i = complete_seqs_scores.index(max(complete_seqs_scores))
-        seq = complete_seqs[i]
+        if smth_wrong is not True:
+            i = complete_seqs_scores.index(max(complete_seqs_scores))
+            seq = complete_seqs[i]
+            hypotheses.append([w for w in seq if w not in {word_map['<start>'], word_map['<end>'], word_map['<pad>']}])
+        else:
+            seq = seqs[0][:config.max_cap_len]
+            hypotheses.append([w.item() for w in seq if w.item() not in {word_map['<start>'], word_map['<end>'], word_map['<pad>']}] + [word_map['<end>']])
 
         # References
         img_caps = allcaps[0].tolist()
@@ -164,15 +172,15 @@ def evaluate(beam_size):
                 img_caps))  # remove <start> and pads
         references.append(img_captions)
 
-        # Hypotheses
-        hypotheses.append([w for w in seq if w not in {word_map['<start>'], word_map['<end>'], word_map['<pad>']}])
+        # # Hypotheses
+        # hypotheses.append([w for w in seq if w not in {word_map['<start>'], word_map['<end>'], word_map['<pad>']}])
 
         assert len(references) == len(hypotheses)
 
     # Calculate BLEU-4 scores
     bleu4 = corpus_bleu(references, hypotheses)
 
-    # pycocoevalcap
+    # Calculate pycocoevalcap scores
     gts, res = format_for_metrics(references, hypotheses, rev_word_map)
     blue_scores, _ = Bleu(4).compute_score(gts, res)
     cider_score, _ = Cider().compute_score(gts, res)
