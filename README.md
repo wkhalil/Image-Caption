@@ -19,7 +19,8 @@ $ git clone git@github.com:wkhalil/Image-Caption.git
 2. **before training & testing: make sure all libraries are installed with compatible versions (requirements.txt for reference).**
 using the interpreter with compatible environment to open the project.
 3. check for directory tree (missing folders can be created manually, most with place_holder.txt) <br />
-directory necessary for training:
+download <a href="https://www.kaggle.com/adityajn105/flickr8k?select=Images">Flickr 8k Dataset</a> and store the folder with images in project as './inputs/Images'. <br />
+directory necessary before training:
 ```
 .
 ├── README.md
