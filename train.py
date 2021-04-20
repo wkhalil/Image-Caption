@@ -30,7 +30,6 @@ def main():
     data_name = config.data_name
     checkpoint = config.checkpoint
 
-
     log_f = open(config.train_log_path, 'a+', encoding='utf-8')
 
     # Read word map
