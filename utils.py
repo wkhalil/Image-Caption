@@ -298,7 +298,7 @@ def save_checkpoint(data_name, epoch, epochs_since_improvement, encoder, decoder
              'decoder_optimizer': decoder_optimizer}
     filename = config.output_folder + '/checkpoint_' + data_name + '.pth.tar'
     torch.save(state, filename)
-    torch.save(state, config.output_folder + '/checkpoint_' + time.strftime('%m%d_%H%M', time.localtime()) + '.pth.tar')
+    torch.save(state, '{}/checkpoint_{}_epoch[{}].pth.tar'.format(config.output_folder, time.strftime('%m%d_%H', time.localtime()), epoch))
     # If this checkpoint is the best so far, store a copy so it doesn't get overwritten by a worse checkpoint
     if is_best:
         record_old_model()
@@ -365,7 +365,7 @@ def record_old_model():
     old_path = config.checkpoint
     if old_path and os.path.isfile(old_path):   # only having previous checkpoints and existing in the specific directory
         mtime = os.stat(old_path).st_mtime
-        file_modify_time = time.strftime('%m%d_%H%M', time.localtime(mtime))
+        file_modify_time = time.strftime('%m%d_%H', time.localtime(mtime))
         new_model_name = "BEST_{}.pth.tar".format(file_modify_time)
         new_path = config.past_model_path + '/' + new_model_name
         shutil.move(old_path, new_path)
