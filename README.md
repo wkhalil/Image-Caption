@@ -17,7 +17,8 @@ Data comes from: <a href="https://www.kaggle.com/adityajn105/flickr8k?select=Ima
 $ git clone git@github.com:wkhalil/Image-Caption.git
 ```
 2. **before training & testing: make sure all libraries are installed with compatible versions (requirements.txt for reference).**
-using the interpreter with compatible environment to open the project.
+  - using the interpreter with compatible environment to open the project.
+  - if using MacOS Catalina, please run the following commands to avoid potential bug. https://stackoverflow.com/questions/48290403/process-finished-with-exit-code-134-interrupted-by-signal-6-sigabrt
 3. check for directory tree (missing folders can be created manually, most with place_holder.txt) <br />
 download <a href="https://www.kaggle.com/adityajn105/flickr8k?select=Images">Flickr 8k Dataset</a> and store the folder with images in project as './inputs/Images'. <br />
 directory necessary before training:
