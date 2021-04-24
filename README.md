@@ -1,17 +1,26 @@
 # Image-Caption
-project for machine learning <br />
+Project for machine learning <br />
+
+### Contents
+- [Image-Caption](#image-caption)
+    + [References](#references)
+    + [Before training](#before-training)
+    + [Preprocess](#preprocess)
+    + [Training Process](#training-process)
+    + [Evaluation metrics](#evaluation-metrics)
+    + [Testing Process](#testing-process)
+
+---
 
 
-Reference for network framework and training code: <a href="https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Image-Captioning">a-PyTorch-Tutorial-to-Image-Captioning</a>. <br />
-Data comes from: <a href="https://www.kaggle.com/adityajn105/flickr8k?select=Images">Flickr 8k Dataset</a> <br />
+### References
+*Reference for network framework and training code: <a href="https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Image-Captioning">a-PyTorch-Tutorial-to-Image-Captioning</a>. <br />
+Reference Paper <a href="https://arxiv.org/pdf/1502.03044.pdf">Show, Attend and Tell</a> <br />
+Data comes from: <a href="https://www.kaggle.com/adityajn105/flickr8k?select=Images">Flickr 8k Dataset</a> <br />*
 
 
-- Adding config.py to record all parameters.
-- Adding data preprocessing part for specific input.
-- Revised code to suit API changes of different libraries.
-- Caption test revised.
-
-### before training
+---
+### Before training
 1. clone the current repository to servers
 ```
 $ git clone git@github.com:wkhalil/Image-Caption.git
@@ -52,13 +61,13 @@ directory necessary before training:
 ├── train.py
 └── utils.py
 ```
-
+---
 ### Preprocess
 ```
 $ python create_input_files.py
 ```
 (only once for generating intermediate data files)
-
+---
 ### Training Process
 1. There are two choices for training, if training without previous checkpoints, **set checkpoints=None in config.py**. <br />
 Another one is training based on current best model (**default, obtain best model: <a href="https://drive.google.com/drive/folders/1E3W1wKbhV20FyBfRfTXfRcjAVjoIQavp?usp=sharing">latest model checkpoints<a/>**).
@@ -66,13 +75,13 @@ Another one is training based on current best model (**default, obtain best mode
 ```
 $ python train.py
 ```
-
-### evaluation metrics
+---
+### Evaluation metrics
 first install <a href="https://github.com/salaniz/pycocoevalcap"> pycocoevalcap <a/> for CIDER, SPICE metrics.(Problems still exist for SPICE after installing following <a href="https://github.com/jiasenlu/coco-caption">instructions<a/>, and others also met <a href="https://github.com/jiasenlu/NeuralBabyTalk/issues/9">the same problem<a/>)
 ```
 $ python eval.py
 ```
-
+---
 ### Testing Process
 All generated captions would be stored under test_results directory. <br />
 Three choices:
