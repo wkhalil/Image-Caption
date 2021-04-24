@@ -15,34 +15,57 @@ from pycocoevalcap.spice.spice import Spice
 import torch.nn.functional as F
 from tqdm import tqdm
 import config
+import argparse
 
-# Load model
-checkpoint = torch.load(config.checkpoint)
-decoder = checkpoint['decoder']
-# decoder = decoder.to(config.device)   # no GPU
-decoder.eval()
-encoder = checkpoint['encoder']
-# encoder = encoder.to(config.device)   # no GPU
-encoder.eval()
+# # Load model
+# checkpoint = torch.load(config.checkpoint)
+# decoder = checkpoint['decoder']
+# # decoder = decoder.to(config.device)   # no GPU
+# decoder.eval()
+# encoder = checkpoint['encoder']
+# # encoder = encoder.to(config.device)   # no GPU
+# encoder.eval()
+#
+# # Load word map (word2ix)
+# with open(config.word_map_file, 'r') as j:
+#     word_map = json.load(j)
+# rev_word_map = {v: k for k, v in word_map.items()}
+# vocab_size = len(word_map)
+#
+# # Normalization transform
+# normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+#                                  std=[0.229, 0.224, 0.225])
 
-# Load word map (word2ix)
-with open(config.word_map_file, 'r') as j:
-    word_map = json.load(j)
-rev_word_map = {v: k for k, v in word_map.items()}
-vocab_size = len(word_map)
 
-# Normalization transform
-normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])
-
-
-def evaluate(beam_size):
+def evaluate(beam_size, model_path):
     """
     Evaluation
 
     :param beam_size: beam size at which to generate captions for evaluation
     :return: BLEU-4 score
     """
+    # Load model
+    if not model_path:
+        model_path = config.checkpoint
+    checkpoint = torch.load(model_path)
+    decoder = checkpoint['decoder']
+    # decoder = decoder.to(config.device)   # no GPU
+    decoder.eval()
+    encoder = checkpoint['encoder']
+    # encoder = encoder.to(config.device)   # no GPU
+    encoder.eval()
+    epoch = checkpoint['epoch']
+
+    # Load word map (word2ix)
+    with open(config.word_map_file, 'r') as j:
+        word_map = json.load(j)
+    rev_word_map = {v: k for k, v in word_map.items()}
+    vocab_size = len(word_map)
+
+    # Normalization transform
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+
     # DataLoader
     loader = torch.utils.data.DataLoader(
         CaptionDataset(config.data_folder, config.data_name, 'TEST', transform=transforms.Compose([normalize])),
@@ -186,18 +209,26 @@ def evaluate(beam_size):
     cider_score, _ = Cider().compute_score(gts, res)
     # spice_score = Spice().compute_score(gts, res)
     spice_score = 'awaiting'
-    return bleu4, blue_scores, cider_score, spice_score
+    return bleu4, blue_scores, cider_score, spice_score, epoch
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Generate Evaluation')
+    parser.add_argument('--model', '-m', help='path to model')
+    args = parser.parse_args()
+
     beam_size = 1
-    metrics = evaluate(beam_size)
-    print("\nBLEU-4 score @ beam size of %d is %.4f." % (beam_size, metrics[0]))
+    metrics = evaluate(beam_size, args.model)
+    print("\n\neval on model {}".format(args.model if args.model else config.checkpoint))
+    print('epoch {}'.format(metrics[4]))
+    print("BLEU-4 score @ beam size of %d is %.4f." % (beam_size, metrics[0]))
     print('pycocoevalcap evaluation:')
     print('\tblue 1 is {:.4f}\tblue 2 is {:.4f}\tblue 3 is {:.4f}\tblue 4 is {:.4f}'.format(*metrics[1]))
     print('\tcider is {:.4f}\t\tspice is {}'.format(metrics[2], metrics[3]))
     log_f = open(config.eval_log_path, 'a+', encoding='utf-8')
-    log_f.write("\nBLEU-4 score @ beam size of %d is %.4f." % (beam_size, metrics[0]) + '\n')
+    log_f.write("\n------------------------\neval on model {}".format(args.model if args.model else config.checkpoint) + '\n')
+    log_f.write('epoch {}\n'.format(metrics[4]))
+    log_f.write("BLEU-4 score @ beam size of %d is %.4f." % (beam_size, metrics[0]) + '\n')
     log_f.write("pycocoevalcap evaluation:" + '\n')
     log_f.write('\tblue 1 is {:.4f}\tblue 2 is {:.4f}\tblue 3 is {:.4f}\tblue 4 is {:.4f}'.format(*metrics[1]) + '\n')
     log_f.write('\tcider is {:.4f}\t\tspice is {}'.format(metrics[2], metrics[3]) + '\n')
