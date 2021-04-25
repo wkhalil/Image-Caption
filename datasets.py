@@ -22,7 +22,7 @@ class CaptionDataset(Dataset):
 
         # Open hdf5 file where images are stored
         self.h = h5py.File(os.path.join(data_folder, self.split + '_IMAGES_' + data_name + '.hdf5'), 'r')
-        self.imgs = self.h['images']
+        self.imgs = self.h['images']        # pixel data of image is tored in hdf5
 
         # Captions per image
         self.cpi = self.h.attrs['captions_per_image']
@@ -49,7 +49,7 @@ class CaptionDataset(Dataset):
 
         caption = torch.LongTensor(self.captions[i])
 
-        caplen = torch.LongTensor([self.caplens[i]])
+        caplen = torch.LongTensor([self.caplens[i]])    # len of the Nth caption among all captions for all images
 
         if self.split is 'TRAIN':
             return img, caption, caplen

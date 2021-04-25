@@ -65,8 +65,8 @@ def main():
         decoder_optimizer = checkpoint['decoder_optimizer']
         encoder = checkpoint['encoder']
         encoder_optimizer = checkpoint['encoder_optimizer']
-        if fine_tune_encoder is True and encoder_optimizer is None:
-            encoder.fine_tune(fine_tune_encoder)
+        if fine_tune_encoder is True and encoder_optimizer is None:     # check for fine tuning
+            encoder.fine_tune(fine_tune_encoder)        # change requires_grad for weights
             encoder_optimizer = torch.optim.Adam(params=filter(lambda p: p.requires_grad, encoder.parameters()),
                                                  lr=config.encoder_lr)
 
@@ -78,25 +78,25 @@ def main():
     # criterion = nn.CrossEntropyLoss().to(config.device)   # no GPU
     criterion = nn.CrossEntropyLoss()
 
-    # Custom dataloaders
+    # Custom batch dataloaders
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],  # 这里是原ResNet的mean和std
                                      std=[0.229, 0.224, 0.225])
     train_loader = torch.utils.data.DataLoader(
-        CaptionDataset(config.data_folder, data_name, 'TRAIN', transform=transforms.Compose([normalize])),
+        CaptionDataset(config.data_folder, data_name, 'TRAIN', transform=transforms.Compose([normalize])),  # CaptionDataset is in datasets.py
         batch_size=config.batch_size, shuffle=True, num_workers=config.workers, pin_memory=True)
     val_loader = torch.utils.data.DataLoader(
         CaptionDataset(config.data_folder, data_name, 'VAL', transform=transforms.Compose([normalize])),
         batch_size=config.batch_size, shuffle=True, num_workers=config.workers, pin_memory=True)
 
     # Epochs
-    val_writer = SummaryWriter(log_dir=config.tensorboard_path + '/val/' + time.strftime('%m-%d_%H%M', time.localtime()))
+    val_writer = SummaryWriter(log_dir=config.tensorboard_path + '/val/' + time.strftime('%m-%d_%H%M', time.localtime()))   # for tensorboard
     for epoch in range(start_epoch, config.epochs):
 
         # Decay learning rate if there is no improvement for 8 consecutive epochs, and terminate training after 20
         if epochs_since_improvement == 20:
             break
         if epochs_since_improvement > 0 and epochs_since_improvement % 8 == 0:
-            adjust_learning_rate(decoder_optimizer, 0.8)
+            adjust_learning_rate(decoder_optimizer, 0.8)        # utils.py
             if fine_tune_encoder:
                 adjust_learning_rate(encoder_optimizer, 0.8)
 
@@ -162,7 +162,7 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
     start = time.time()
 
     # Batches
-    with tqdm(total = len(train_loader)) as pbar:
+    with tqdm(total = len(train_loader)) as pbar:       # adding progress bar
         for i, (imgs, caps, caplens) in enumerate(train_loader):
             data_time.update(time.time() - start)
 
@@ -172,15 +172,16 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
             # caplens = caplens.to(config.device)   # no GPU
 
             # Forward prop.
-            imgs = encoder(imgs)
+            imgs = encoder(imgs)        # imgs: encoded image features
             scores, caps_sorted, decode_lengths, alphas, sort_ind = decoder(imgs, caps, caplens)
+            # score shape: (batch_size, max(decode_lengths), vocab_size)
 
             # Since we decoded starting with <start>, the targets are all words after <start>, up to <end>
             targets = caps_sorted[:, 1:]
 
             # Remove timesteps that we didn't decode at, or are pads
             # pack_padded_sequence is an easy trick to do this
-            scores = pack_padded_sequence(scores, decode_lengths, batch_first=True).data
+            scores = pack_padded_sequence(scores, decode_lengths, batch_first=True).data    # score shape: (batch_size, count of words in index, vocab_size)
             targets = pack_padded_sequence(targets, decode_lengths, batch_first=True).data
 
             # Calculate loss
@@ -207,7 +208,7 @@ def train(train_loader, encoder, decoder, criterion, encoder_optimizer, decoder_
                 encoder_optimizer.step()
 
             # Keep track of metrics
-            top5 = accuracy(scores, targets, 5)  # not only calculate loss, but also accuracy
+            top5 = accuracy(scores, targets, 5)     # utils.py
             losses.update(loss.item(), sum(decode_lengths))
             top5accs.update(top5, sum(decode_lengths))
             batch_time.update(time.time() - start)
@@ -299,7 +300,7 @@ def validate(val_loader, encoder, decoder, criterion, writer, epoch):
 
             # Keep track of metrics
             losses.update(loss.item(), sum(decode_lengths))
-            top5 = accuracy(scores, targets, 5)
+            top5 = accuracy(scores, targets, 5)      # https://stackoverflow.com/questions/37668902/evaluation-calculate-top-n-accuracy-top-1-and-top-5#:~:text=Top%2D5%20accuracy%20means%20that,Tiger%3A%200.4
             top5accs.update(top5, sum(decode_lengths))
             batch_time.update(time.time() - start)
 

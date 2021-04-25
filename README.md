@@ -1,5 +1,5 @@
 # Image-Caption
-Project for machine learning <br />
+Project for <a href="https://kylebradbury.github.io/ids705/index.html"> IDS 705: Principles of Machine Learning <a/> <br />
 
 ### Contents
 - [Image-Caption](#image-caption)

@@ -78,9 +78,10 @@ class Attention(nn.Module):
         """
         att1 = self.encoder_att(encoder_out)  # (batch_size, num_pixels, attention_dim)
         att2 = self.decoder_att(decoder_hidden)  # (batch_size, attention_dim)
-        att = self.full_att(self.relu(att1 + att2.unsqueeze(1))).squeeze(2)  # (batch_size, num_pixels)
-        alpha = self.softmax(att)  # (batch_size, num_pixels)
+        att = self.full_att(self.relu(att1 + att2.unsqueeze(1))).squeeze(2)  # (batch_size, num_pixels) after full_att, dimension index 2 is 1
+        alpha = self.softmax(att)  # (batch_size, num_pixels)  softmax does not change the dimension, only change value
         attention_weighted_encoding = (encoder_out * alpha.unsqueeze(2)).sum(dim=1)  # (batch_size, encoder_dim)
+        # the proportion is only decided by pixels, for the same pixel, all encoder_dim would be timed by the same alpha element
 
         return attention_weighted_encoding, alpha
 
@@ -171,12 +172,12 @@ class DecoderWithAttention(nn.Module):
         encoder_dim = encoder_out.size(-1)
         vocab_size = self.vocab_size
 
-        # Flatten image
+        # Flatten image         for each image, the pixels are eliminated, vector for one image is [1, encoder+_dim]
         encoder_out = encoder_out.view(batch_size, -1, encoder_dim)  # (batch_size, num_pixels, encoder_dim)
         num_pixels = encoder_out.size(1)
 
         # Sort input data by decreasing lengths; why? apparent below
-        caption_lengths, sort_ind = caption_lengths.squeeze(1).sort(dim=0, descending=True)
+        caption_lengths, sort_ind = caption_lengths.squeeze(1).sort(dim=0, descending=True)     # caption_lengths is the length of true caption in the batch
         encoder_out = encoder_out[sort_ind]
         encoded_captions = encoded_captions[sort_ind]
 
@@ -188,14 +189,16 @@ class DecoderWithAttention(nn.Module):
 
         # We won't decode at the <end> position, since we've finished generating as soon as we generate <end>
         # So, decoding lengths are actual lengths - 1
-        decode_lengths = (caption_lengths - 1).tolist()
+        decode_lengths = (caption_lengths - 1).tolist()     # each decoder generated length corresponding to true caption length -1
 
         # Create tensors to hold word predicion scores and alphas
-        predictions = torch.zeros(batch_size, max(decode_lengths), vocab_size).to(device)
-        alphas = torch.zeros(batch_size, max(decode_lengths), num_pixels).to(device)
+        # predictions = torch.zeros(batch_size, max(decode_lengths), vocab_size).to(device)   # no GPU
+        predictions = torch.zeros(batch_size, max(decode_lengths), vocab_size)
+        # alphas = torch.zeros(batch_size, max(decode_lengths), num_pixels).to(device)    # no GPU
+        alphas = torch.zeros(batch_size, max(decode_lengths), num_pixels)
 
         # At each time-step, decode by
-        # attention-weighing the encoder's output based on the decoder's previous hidden state output
+        # attention-weighting the encoder's output based on the decoder's previous hidden state output
         # then generate a new word in the decoder with the previous word and the attention weighted encoding
         for t in range(max(decode_lengths)):
             batch_size_t = sum([l > t for l in decode_lengths])
@@ -207,7 +210,7 @@ class DecoderWithAttention(nn.Module):
                 torch.cat([embeddings[:batch_size_t, t, :], attention_weighted_encoding], dim=1),
                 (h[:batch_size_t], c[:batch_size_t]))  # (batch_size_t, decoder_dim)
             preds = self.fc(self.dropout(h))  # (batch_size_t, vocab_size)
-            predictions[:batch_size_t, t, :] = preds
+            predictions[:batch_size_t, t, :] = preds        # since captions are sorted by the descending length, the sentences have t steps are top batch_size_t
             alphas[:batch_size_t, t, :] = alpha
 
         return predictions, encoded_captions, decode_lengths, alphas, sort_ind

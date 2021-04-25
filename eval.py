@@ -207,9 +207,10 @@ def evaluate(beam_size, model_path):
     gts, res = format_for_metrics(references, hypotheses, rev_word_map)
     blue_scores, _ = Bleu(4).compute_score(gts, res)
     cider_score, _ = Cider().compute_score(gts, res)
+    rouge_score, _ = Rouge().compute_score(gts, res)
     # spice_score = Spice().compute_score(gts, res)
     spice_score = 'awaiting'
-    return bleu4, blue_scores, cider_score, spice_score, epoch
+    return bleu4, blue_scores, cider_score, spice_score, rouge_score, epoch
 
 
 if __name__ == '__main__':
@@ -219,17 +220,17 @@ if __name__ == '__main__':
 
     beam_size = 1
     metrics = evaluate(beam_size, args.model)
-    print("\n\neval on model {}".format(args.model if args.model else config.checkpoint))
-    print('epoch {}'.format(metrics[4]))
+    print("\n\nEval on model {}".format(args.model if args.model else config.checkpoint))
+    print('Epoch {}'.format(metrics[5]))
     print("BLEU-4 score @ beam size of %d is %.4f." % (beam_size, metrics[0]))
     print('pycocoevalcap evaluation:')
-    print('\tblue 1 is {:.4f}\tblue 2 is {:.4f}\tblue 3 is {:.4f}\tblue 4 is {:.4f}'.format(*metrics[1]))
-    print('\tcider is {:.4f}\t\tspice is {}'.format(metrics[2], metrics[3]))
+    print('\tBlue 1 is {:.4f}\tBlue 2 is {:.4f}\tBlue 3 is {:.4f}\tBlue 4 is {:.4f}'.format(*metrics[1]))
+    print('\tCider is {:.4f}\t\tRouge is {}'.format(metrics[2], metrics[4]))
     log_f = open(config.eval_log_path, 'a+', encoding='utf-8')
-    log_f.write("\n------------------------\neval on model {}".format(args.model if args.model else config.checkpoint) + '\n')
-    log_f.write('epoch {}\n'.format(metrics[4]))
+    log_f.write("\n------------------------\nEval on model {}".format(args.model if args.model else config.checkpoint) + '\n')
+    log_f.write('Epoch {}\n'.format(metrics[5]))
     log_f.write("BLEU-4 score @ beam size of %d is %.4f." % (beam_size, metrics[0]) + '\n')
     log_f.write("pycocoevalcap evaluation:" + '\n')
     log_f.write('\tblue 1 is {:.4f}\tblue 2 is {:.4f}\tblue 3 is {:.4f}\tblue 4 is {:.4f}'.format(*metrics[1]) + '\n')
-    log_f.write('\tcider is {:.4f}\t\tspice is {}'.format(metrics[2], metrics[3]) + '\n')
+    log_f.write('\tCider is {:.4f}\t\tRouge is {}'.format(metrics[2], metrics[4]) + '\n')
     log_f.close()
